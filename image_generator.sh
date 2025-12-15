@@ -29,8 +29,13 @@ echo "🔍 Detecting OS entries from GRUB..."
 # fi
 
 # --- Manual test entries ---
-entries=("Arch Linux" "Windows" "Parrot")
+entries=("Arch Linux" "Ubuntu" "Parrot" "Fedora" "Windows")
 
+echo "Detected the following entries: "
+
+for entry in "${entries[@]}"; do
+    echo "$entry"
+done
 
 declare -A os_icon_map
 declare -A os_color_map
@@ -86,6 +91,7 @@ fi
 
 # ============= PREPARATION =============
 TMP_DIR=$(mktemp -d)
+#TMP_DIR=temp
 
 # Normalize icons
 echo ""
@@ -134,8 +140,8 @@ echo "Last red pill:   $last_red"
 echo "First blue pill: $first_blue"
 echo "Last blue pill:  $last_blue"
 
-magick "$TMP_DIR/$first_blue" -resize 120% "$TMP_DIR/first_blue.png"
-magick "$TMP_DIR/$last_red" -resize 120% "$TMP_DIR/last_red.png"
+magick "$TMP_DIR/$first_blue" -resize 120% -fill "#00ebff" -colorize 100% "$TMP_DIR/first_blue.png"
+magick "$TMP_DIR/$last_red" -resize 120% -fill "#FF0000" -colorize 100% "$TMP_DIR/last_red.png"
 
 # ============= GENERATION =============
 echo ""
@@ -151,11 +157,11 @@ for entry in "${!os_icon_map[@]}"; do
     output_file="${output_file//[^a-z0-9_.-]/}"
 
     # Prepare scaled versions
-    magick "$TMP_DIR/$icon" -resize 120% "$TMP_DIR/base_${pill}.png"
+    #magick "$TMP_DIR/$icon" -resize 120% "$TMP_DIR/base_${pill}.png"
     magick "$TMP_DIR/$icon" -resize 140% "$TMP_DIR/scaled_${pill}.png"
 
     if [ "$pill" == "red" ]; then
-        magick "$TMP_DIR/base_${pill}.png" -fill "#FF0000" -colorize 100% "$TMP_DIR/base_${pill}.png"
+        #magick "$TMP_DIR/base_${pill}.png" -fill "#FF0000" -colorize 100% "$TMP_DIR/base_${pill}.png"
         magick "$TMP_DIR/scaled_${pill}.png" -fill "#FF0000" -colorize 100% "$TMP_DIR/scaled_${pill}.png"
         base_image="$BASE_RED"
         magick "$base_image" \
@@ -168,7 +174,7 @@ for entry in "${!os_icon_map[@]}"; do
             "$TMP_DIR/func_hidden.png" -geometry +1095+840 -composite \
             "$output_file"
     else
-        magick "$TMP_DIR/base_${pill}.png" -fill "#00ebff" -colorize 100% "$TMP_DIR/base_${pill}.png"
+        #magick "$TMP_DIR/base_${pill}.png" -fill "#00ebff" -colorize 100% "$TMP_DIR/base_${pill}.png"
         magick "$TMP_DIR/scaled_${pill}.png" -fill "#00ebff" -colorize 100% "$TMP_DIR/scaled_${pill}.png"
         base_image="$BASE_BLUE"
         magick "$base_image" \
