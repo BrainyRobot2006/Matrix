@@ -7,7 +7,7 @@
 
 THEME_DIR="$(dirname "$0")"
 ICON_DIR="$THEME_DIR/os_icons"
-OUTPUT_DIR="$THEME_DIR"
+OUTPUT_DIR="$THEME_DIR/output"
 BASE_RED="$THEME_DIR/base_r.png"
 BASE_BLUE="$THEME_DIR/base_b.png"
 BASE_NONE="$THEME_DIR/base_n.png"
@@ -19,7 +19,7 @@ if ! command -v magick >/dev/null 2>&1; then
     exit 1
 fi
 
-echo "🔍 Detecting OS entries from GRUB..."
+echo "Detecting OS entries from GRUB..."
 
 # --- Auto-detection (disabled for testing) ---
 # mapfile -t entries < <(grep "menuentry " /boot/grub/grub.cfg | awk -F"'" '{print $2}')
@@ -29,7 +29,8 @@ echo "🔍 Detecting OS entries from GRUB..."
 # fi
 
 # --- Manual test entries ---
-entries=("Arch Linux" "Ubuntu" "Parrot" "Fedora" "Windows")
+#entries=("Arch Linux" "Ubuntu" "Parrot" "Fedora" "Windows" "func1")
+entries=("Arch" "Windows" "func1" "func2" "func3" "func4")
 
 echo "Detected the following entries: "
 
@@ -38,6 +39,8 @@ for entry in "${entries[@]}"; do
 done
 
 declare -A os_icon_map
+declare -A function_icon_map
+function_entries=()
 declare -A os_color_map
 
 # ============= OS DETECTION AND USER INPUT =============
@@ -55,12 +58,21 @@ for entry in "${entries[@]}"; do
         *kali*) default_icon="os_kali.png" ;;
         *endeavour*) default_icon="os_endeavourOS.png" ;;
         *win*) default_icon="os_win.png" ;;
+        *func*) default_icon="func_firmware.png" ;;
     esac
 
     echo ""
     echo "Detected OS: $entry"
-    default_pill=$( [[ "$lower" == *win* ]] && echo "blue" || echo "red" )
-    read -p "Is this a red pill or blue pill? [red/blue] (default: $default_pill): " pill
+
+    if [[ "$default_icon" == "func_firmware.png" ]]; then
+        default_pill="function"
+    elif [[ "$lower" == *win* ]]; then
+        default_pill="blue"
+    else
+        default_pill="red"
+    fi
+
+    read -p "Is this a red pill, blue pill or function? [red/blue/function] (default: $default_pill): " pill
     pill=${pill:-$default_pill}
 
     read -p "Select icon file (default: $default_icon): " icon
@@ -71,13 +83,18 @@ for entry in "${entries[@]}"; do
         icon="os_unknown.png"
     fi
 
-    os_icon_map["$entry"]="$icon"
-    os_color_map["$entry"]="$pill"
+    if [[ "$pill" == function ]]; then
+        function_icon_map["$entry"]="$icon"
+        function_entries+=( "$entry" )
+    else
+        os_icon_map["$entry"]="$icon"
+        os_color_map["$entry"]="$pill"
+    fi
 done
 
 # ============= VERIFICATION =============
 echo ""
-echo "🧾 Summary:"
+echo "Summary:"
 for entry in "${!os_icon_map[@]}"; do
     echo "  - $entry → ${os_color_map[$entry]} pill → ${os_icon_map[$entry]}"
 done
@@ -95,7 +112,7 @@ TMP_DIR=$(mktemp -d)
 
 # Normalize icons
 echo ""
-echo "🎨 Normalizing icons..."
+echo "Normalizing icons..."
 for entry in "${!os_icon_map[@]}"; do
     icon="${os_icon_map[$entry]}"
     filename=$(basename "$icon")
@@ -103,19 +120,31 @@ for entry in "${!os_icon_map[@]}"; do
         -trim +repage \
         -resize 130x130 \
         -background none -gravity center \
-        -extent 312x312 "$TMP_DIR/$filename"
+        -extent 312x312 \
+        "$TMP_DIR/$filename"
 done
 
-# Additional function icons
-for func in func_shutdown.png func_hidden.png func_firmware.png; do
-    if [ -f "$ICON_DIR/$func" ]; then
-        magick "$ICON_DIR/$func" \
-            -trim +repage -resize 130x130 \
-            -background none -gravity center \
-            -extent 312x312 \
-            -resize 50%  "$TMP_DIR/$func"
-    fi
+for entry in "${!function_icon_map[@]}"; do
+    icon="${function_icon_map[$entry]}"
+    filename=$(basename "$icon")
+
+    magick "$ICON_DIR/$icon" \
+        -trim +repage \
+        -resize 130x130 \
+        -background none -gravity center \
+        -extent 312x312 \
+        -fill "#f0f0f0" \
+        -colorize 100% \
+        -resize 50% \
+        "$TMP_DIR/$filename"
 done
+
+magick "$ICON_DIR/selection.png" \
+    -trim +repage \
+    -resize 130x130 \
+    -background none -gravity center \
+    -resize 150% \
+    -extent 312x312 "$TMP_DIR/selection.png"
 
 first_red=""
 last_red=""
@@ -141,20 +170,33 @@ echo "First blue pill: $first_blue"
 echo "Last blue pill:  $last_blue"
 
 magick "$TMP_DIR/$first_blue" -resize 120% -fill "#00ebff" -colorize 100% "$TMP_DIR/first_blue.png"
+magick "$TMP_DIR/$last_blue" -resize 120% -fill "#00ebff" -colorize 100% "$TMP_DIR/last_blue.png"
+magick "$TMP_DIR/$first_red" -resize 120% -fill "#FF0000" -colorize 100% "$TMP_DIR/first_red.png"
 magick "$TMP_DIR/$last_red" -resize 120% -fill "#FF0000" -colorize 100% "$TMP_DIR/last_red.png"
 
 # ============= GENERATION =============
 echo ""
-echo "🧩 Generating composite images..."
+echo "Generating composite images..."
+
+# Generate function row 
+
+num_elements=${#function_icon_map[@]}
+if (( num_elements % 2 == 0 )); then
+    x_cord=$(( 995 - (num_elements) * 100 ))
+else
+    x_cord=$(( 895 - (num_elements - 1) * 100 ))
+fi
 
 for entry in "${!os_icon_map[@]}"; do
     pill="${os_color_map[$entry]}"
     icon="${os_icon_map[$entry]}"
+    class_name="${entries[$entry]}"
 
     # Generate readable filename
-    output_file="$OUTPUT_DIR/${entry,,}.png"
-    output_file="${output_file// /_}"
-    output_file="${output_file//[^a-z0-9_.-]/}"
+    filename="${entry,,}.png"
+    filename="${filename// /_}"
+    filename="${filename//[^a-z0-9_.-]/}"
+    output_file="$OUTPUT_DIR/$filename"
 
     # Prepare scaled versions
     #magick "$TMP_DIR/$icon" -resize 120% "$TMP_DIR/base_${pill}.png"
@@ -164,30 +206,73 @@ for entry in "${!os_icon_map[@]}"; do
         #magick "$TMP_DIR/base_${pill}.png" -fill "#FF0000" -colorize 100% "$TMP_DIR/base_${pill}.png"
         magick "$TMP_DIR/scaled_${pill}.png" -fill "#FF0000" -colorize 100% "$TMP_DIR/scaled_${pill}.png"
         base_image="$BASE_RED"
-        magick "$base_image" \
-            "$TMP_DIR/scaled_red.png" -geometry +305+260 -composite \
-            "$TMP_DIR/first_blue.png" -geometry +1210+345 -composite \
-            "$TMP_DIR/scaled_red.png" -geometry +305+260 -composite \
-            "$TMP_DIR/first_blue.png" -geometry +1210+345 -composite \
-            "$TMP_DIR/func_firmware.png" -geometry +695+840 -composite \
-            "$TMP_DIR/func_shutdown.png" -geometry +895+840 -composite \
-            "$TMP_DIR/func_hidden.png" -geometry +1095+840 -composite \
-            "$output_file"
-    else
+        args=(
+            "$base_image"
+            "$TMP_DIR/scaled_red.png" -geometry +305+260 -composite
+            "$TMP_DIR/first_blue.png" -geometry +1210+345 -composite
+            "$TMP_DIR/scaled_red.png" -geometry +305+260 -composite
+            "$TMP_DIR/first_blue.png" -geometry +1210+345 -composite
+        )
+        temp_x_cord=$((x_cord))
+        for f_entry in "${!function_icon_map[@]}"; do
+            icon="${function_icon_map[$f_entry]}"
+            args+=( "$TMP_DIR/$icon" -geometry +${temp_x_cord}+840 -composite )
+            ((temp_x_cord+=200))
+        done
+
+        magick "${args[@]}" "$output_file"
+    
+    elif [ "$pill" == "blue" ]; then
         #magick "$TMP_DIR/base_${pill}.png" -fill "#00ebff" -colorize 100% "$TMP_DIR/base_${pill}.png"
         magick "$TMP_DIR/scaled_${pill}.png" -fill "#00ebff" -colorize 100% "$TMP_DIR/scaled_${pill}.png"
         base_image="$BASE_BLUE"
-        magick "$base_image" \
-            "$TMP_DIR/scaled_blue.png" -geometry +1190+260 -composite \
-            "$TMP_DIR/last_red.png" -geometry +335+345 -composite \
-            "$TMP_DIR/scaled_blue.png" -geometry +1190+260 -composite \
-            "$TMP_DIR/last_red.png" -geometry +335+345 -composite \
-            "$TMP_DIR/func_firmware.png" -geometry +695+840 -composite \
-            "$TMP_DIR/func_shutdown.png" -geometry +895+840 -composite \
-            "$TMP_DIR/func_hidden.png" -geometry +1095+840 -composite \
-            "$output_file"
+        args=(
+            "$base_image"
+            "$TMP_DIR/scaled_blue.png" -geometry +1190+260 -composite
+            "$TMP_DIR/last_red.png" -geometry +335+345 -composite
+            "$TMP_DIR/scaled_blue.png" -geometry +1190+260 -composite
+            "$TMP_DIR/last_red.png" -geometry +335+345 -composite
+        )
+        temp_x_cord=$((x_cord))
+        for f_entry in "${function_entries[@]}"; do
+            icon="${function_icon_map[$f_entry]}"
+            args+=( "$TMP_DIR/$icon" -geometry +${temp_x_cord}+840 -composite )
+            ((temp_x_cord+=200))
+        done
+
+        magick "${args[@]}" "$output_file"
     fi
 
+    echo "✅ Created: $(basename "$output_file")"
+done
+
+temp_x_cord=$((x_cord))
+for entry in "${function_entries[@]}"; do
+    icon="${function_icon_map[$entry]}"
+    # Generate readable filename
+    filename="${entry,,}.png"
+    filename="${filename// /_}"
+    filename="${filename//[^a-z0-9_.-]/}"
+    output_file="$OUTPUT_DIR/$filename"
+
+    base_image="$BASE_NONE"
+    args=(
+        "$base_image"
+        "$TMP_DIR/last_red.png" -geometry +335+345 -composite
+        "$TMP_DIR/first_blue.png" -geometry +1210+345 -composite
+        "$TMP_DIR/last_red.png" -geometry +335+345 -composite
+        "$TMP_DIR/first_blue.png" -geometry +1210+345 -composite
+        "$TMP_DIR/selection.png" -geometry +$((temp_x_cord - 80))+760 -composite
+    )
+    ((temp_x_cord+=200))
+    temp2_x_cord=$((x_cord))
+    for f_entry in "${function_entries[@]}"; do
+        icon="${function_icon_map[$f_entry]}"
+        args+=( "$TMP_DIR/$icon" -geometry +${temp2_x_cord}+840 -composite )
+        ((temp2_x_cord+=200))
+    done
+
+    magick "${args[@]}" "$output_file"
     echo "✅ Created: $(basename "$output_file")"
 done
 
@@ -195,4 +280,4 @@ done
 rm -rf "$TMP_DIR"
 
 echo ""
-echo "🎉 All images generated successfully in $OUTPUT_DIR!"
+echo "All images generated successfully in $OUTPUT_DIR!"
