@@ -1,16 +1,11 @@
 #!/bin/bash
-# =========================================
-# Matrix Morpheus GRUB Theme Generator
-# Dynamically generates selection images
-# supporting multiple OS entries.
-# =========================================
 
 THEME_DIR="$(dirname "$0")"
 ICON_DIR="$THEME_DIR/os_icons"
 OUTPUT_DIR="$THEME_DIR/output"
-BASE_RED="$THEME_DIR/base_r.png"
-BASE_BLUE="$THEME_DIR/base_b.png"
-BASE_NONE="$THEME_DIR/base_n.png"
+BASE_RED="$THEME_DIR/base/base_r.png"
+BASE_BLUE="$THEME_DIR/base/base_b.png"
+BASE_NONE="$THEME_DIR/base/base_n.png"
 
 # Check ImageMagick
 if ! command -v magick >/dev/null 2>&1; then
@@ -21,16 +16,28 @@ fi
 
 echo "Detecting OS entries from GRUB..."
 
-# --- Auto-detection (disabled for testing) ---
-# mapfile -t entries < <(grep "menuentry " /boot/grub/grub.cfg | awk -F"'" '{print $2}')
-# if [ ${#entries[@]} -eq 0 ]; then
-#     echo "⚠️ No menu entries found! Aborting."
-#     exit 1
-# fi
+# Menuentry detection
+mapfile -t entries < <(
+  awk '
+    $1 == "menuentry" || $2 == "menuentry" {
+      for (i = 1; i <= NF; i++) {
+        if ($i == "--class") {
+          print $(i+1)
+          break
+        }
+      }
+    }
+  ' /boot/grub/grub.cfg
+)
 
-# --- Manual test entries ---
-#entries=("Arch Linux" "Ubuntu" "Parrot" "Fedora" "Windows" "func1")
-entries=("Arch" "Windows" "func1" "func2" "func3" "func4")
+
+if [ ${#entries[@]} -eq 0 ]; then
+    echo "⚠️ No menu entries found! Aborting."
+    exit 1
+fi
+
+# Manual test entries
+#entries=("Arch" "Windows" "func1" "func2" "func3" "func4")
 
 echo "Detected the following entries: "
 
@@ -43,7 +50,7 @@ declare -A function_icon_map
 function_entries=()
 declare -A os_color_map
 
-# ============= OS DETECTION AND USER INPUT =============
+# OS DETECTION AND USER INPUT
 for entry in "${entries[@]}"; do
     lower=$(echo "$entry" | tr '[:upper:]' '[:lower:]')
     default_icon="os_linux.png"
@@ -92,7 +99,7 @@ for entry in "${entries[@]}"; do
     fi
 done
 
-# ============= VERIFICATION =============
+# VERIFICATION
 echo ""
 echo "Summary:"
 for entry in "${!os_icon_map[@]}"; do
@@ -106,7 +113,7 @@ if [[ "$confirm" =~ ^[Nn]$ ]]; then
     exit 0
 fi
 
-# ============= PREPARATION =============
+# PREPARATION 
 TMP_DIR=$(mktemp -d)
 #TMP_DIR=temp
 
@@ -133,7 +140,7 @@ for entry in "${!function_icon_map[@]}"; do
         -resize 130x130 \
         -background none -gravity center \
         -extent 312x312 \
-        -fill "#f0f0f0" \
+        -fill "#8f8f8f" \
         -colorize 100% \
         -resize 50% \
         "$TMP_DIR/$filename"
@@ -174,7 +181,7 @@ magick "$TMP_DIR/$last_blue" -resize 120% -fill "#00ebff" -colorize 100% "$TMP_D
 magick "$TMP_DIR/$first_red" -resize 120% -fill "#FF0000" -colorize 100% "$TMP_DIR/first_red.png"
 magick "$TMP_DIR/$last_red" -resize 120% -fill "#FF0000" -colorize 100% "$TMP_DIR/last_red.png"
 
-# ============= GENERATION =============
+# GENERATION 
 echo ""
 echo "Generating composite images..."
 
@@ -217,6 +224,7 @@ for entry in "${!os_icon_map[@]}"; do
         for f_entry in "${!function_icon_map[@]}"; do
             icon="${function_icon_map[$f_entry]}"
             args+=( "$TMP_DIR/$icon" -geometry +${temp_x_cord}+840 -composite )
+            args+=( "$TMP_DIR/$icon" -geometry +${temp_x_cord}+840 -composite )
             ((temp_x_cord+=200))
         done
 
@@ -236,6 +244,7 @@ for entry in "${!os_icon_map[@]}"; do
         temp_x_cord=$((x_cord))
         for f_entry in "${function_entries[@]}"; do
             icon="${function_icon_map[$f_entry]}"
+            args+=( "$TMP_DIR/$icon" -geometry +${temp_x_cord}+840 -composite )
             args+=( "$TMP_DIR/$icon" -geometry +${temp_x_cord}+840 -composite )
             ((temp_x_cord+=200))
         done
@@ -268,6 +277,7 @@ for entry in "${function_entries[@]}"; do
     temp2_x_cord=$((x_cord))
     for f_entry in "${function_entries[@]}"; do
         icon="${function_icon_map[$f_entry]}"
+        args+=( "$TMP_DIR/$icon" -geometry +${temp2_x_cord}+840 -composite )
         args+=( "$TMP_DIR/$icon" -geometry +${temp2_x_cord}+840 -composite )
         ((temp2_x_cord+=200))
     done
