@@ -29,3 +29,28 @@ terminal-height: "100%"
     item_icon_space = 0
     item_spacing = 0
 }
+
++ label { 
+    font = "font.pf2" 
+    text = "Graphical boot menu failed to load. Using fallback GRUB menu." 
+    top = 22% 
+    left = 50%-140 
+    color = "#fb3048" 
+}
+
++ boot_menu {
+    left = 28%
+    width = 50%
+    top = 30%
+    height = 45%	
+    item_font = "font.pf2"
+    item_color = "#fb3048"
+    selected_item_font = "font.pf2"
+    selected_item_color = "#74d6cf"
+    icon_width = 16
+    icon_height = 16
+    item_height = 33
+    item_padding = 20
+    item_icon_space = 5
+    item_spacing = 5
+}
