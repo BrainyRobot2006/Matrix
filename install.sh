@@ -23,8 +23,29 @@ if [ "$EUID" -ne 0 ]; then
     exit 1
 fi
 
+# Backup existing GRUB configuration
+if [[ -x "./backup.sh" ]]; then
+    echo "Backing up existing GRUB configuration..."
+    ./backup.sh backup
+else
+    echo "backup.sh not found or not executable."
+    exit 1
+fi
+
+echo ""
+
+# Generate theme images
+if [[ -x "./image_generator.sh" ]]; then
+    echo "Generating theme images..."
+    ./image_generator.sh
+else
+    echo "image_generator.sh not found or not executable."
+    exit 1
+fi
+
+echo ""
+
 # Ensure theme directory exists 
-echo "Checking for theme directory..."
 mkdir -p "$THEME_DIR"
 
 # Copy theme files 
