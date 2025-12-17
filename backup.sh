@@ -49,7 +49,10 @@ case "$1" in
 
         echo "Warning! This will overwrite current GRUB configuration."
         read -rp "Continue? [y/N]: " confirm
-        [[ "$confirm" =~ ^[Yy]$ ]] || exit 1
+        if [[ ! "$confirm" =~ ^[Yy]$ ]]; then
+            echo "Restore aborted."
+            exit 0
+        fi
 
         tar -xzpf "$LATEST_BACKUP" -C /
 
