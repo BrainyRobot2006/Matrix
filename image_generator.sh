@@ -56,15 +56,15 @@ for entry in "${entries[@]}"; do
     default_icon="os_linux.png"
 
     case "$lower" in
-        *arch*) default_icon="os_arch.png" ;;
-        *ubuntu*) default_icon="os_ubuntu.png" ;;
-        *fedora*) default_icon="os_fedora.png" ;;
-        *manjaro*) default_icon="os_manjaro.png" ;;
-        *debian*) default_icon="os_debian.png" ;;
-        *mint*) default_icon="os_linuxmint.png" ;;
-        *kali*) default_icon="os_kali.png" ;;
-        *endeavour*) default_icon="os_endeavourOS.png" ;;
-        *win*) default_icon="os_win.png" ;;
+        *arch*) default_icon="arch.png" ;;
+        *ubuntu*) default_icon="ubuntu.png" ;;
+        *fedora*) default_icon="fedora.png" ;;
+        *manjaro*) default_icon="manjaro.png" ;;
+        *debian*) default_icon="debian.png" ;;
+        *mint*) default_icon="linuxmint.png" ;;
+        *kali*) default_icon="kali.png" ;;
+        *endeavour*) default_icon="endeavourOS.png" ;;
+        *win*) default_icon="win.png" ;;
         *func*) default_icon="func_firmware.png" ;;
     esac
 
