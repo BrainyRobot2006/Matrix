@@ -12,6 +12,7 @@ terminal-top: "80%"
 terminal-width: "100%"
 terminal-height: "100%"
 
+# Change  icon_height and icon_width values to grub resolution dimensions
 + boot_menu {
     left = 0%
     top = 0%
