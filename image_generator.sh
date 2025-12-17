@@ -2,14 +2,14 @@
 
 THEME_DIR="$(dirname "$0")"
 ICON_DIR="$THEME_DIR/os_icons"
-OUTPUT_DIR="$THEME_DIR/output"
+OUTPUT_DIR="$THEME_DIR/Matrix/icons"
 BASE_RED="$THEME_DIR/base/base_r.png"
 BASE_BLUE="$THEME_DIR/base/base_b.png"
 BASE_NONE="$THEME_DIR/base/base_n.png"
 
 # Check ImageMagick
 if ! command -v magick >/dev/null 2>&1; then
-    echo "❌ ImageMagick (magick) not found! Please install it first."
+    echo "ImageMagick (magick) not found! Please install it first."
     echo "   Example: sudo pacman -S imagemagick  or  sudo apt install imagemagick"
     exit 1
 fi
@@ -79,11 +79,64 @@ for entry in "${entries[@]}"; do
         default_pill="red"
     fi
 
-    read -p "Is this a red pill, blue pill or function? [red/blue/function] (default: $default_pill): " pill
-    pill=${pill:-$default_pill}
+    # Select pill  type
+    pill_options=(red blue function)
 
-    read -p "Select icon file (default: $default_icon): " icon
-    icon=${icon:-$default_icon}
+    echo "Select pill type (default: $default_pill):"
+    for i in "${!pill_options[@]}"; do
+        printf "  %d) %s\n" $((i+1)) "${pill_options[i]}"
+    done
+
+    read -r -p "> " reply
+
+    if [[ -z "$reply" ]]; then
+        pill="$default_pill"
+    elif [[ "$reply" =~ ^[0-9]+$ ]] && (( reply >= 1 && reply <= ${#pill_options[@]} )); then
+        pill="${pill_options[reply-1]}"
+    else
+        echo "Invalid selection. Using default."
+        pill="$default_pill"
+    fi
+
+    echo "Selected pill: $pill"
+    echo ""
+
+    # Select icon
+    available_icons=()
+    while IFS= read -r f; do
+        available_icons+=( "$(basename "$f")" )
+    done < <(find "$ICON_DIR" -maxdepth 1 -type f -name '*.png' | sort)
+
+    echo "Select icon file (default: $default_icon):"
+    echo "Available icons:"
+
+    items=()
+    for i in "${!available_icons[@]}"; do
+        items+=( "$((i+1))) ${available_icons[i]}" )
+    done
+    items+=( "$(( ${#available_icons[@]} + 1 ))) Use default" )
+    printf "%s\n" "${items[@]}" | column
+
+    read -r -p "> " reply
+
+    # Enter → default
+    if [[ -z "$reply" ]]; then
+        icon="$default_icon"
+    elif [[ "$reply" =~ ^[0-9]+$ ]]; then
+        if (( reply >= 1 && reply <= ${#available_icons[@]} )); then
+            icon="${available_icons[reply-1]}"
+        elif (( reply == ${#available_icons[@]} + 1 )); then
+            icon="$default_icon"
+        else
+            echo "Invalid selection. Using default."
+            icon="$default_icon"
+        fi
+    else
+        echo "Invalid input. Using default."
+        icon="$default_icon"
+    fi
+
+    echo "Selected icon: $icon"
 
     if [ ! -f "$ICON_DIR/$icon" ]; then
         echo "⚠️  Warning: $ICON_DIR/$icon not found. Using os_unknown.png."
@@ -104,6 +157,10 @@ echo ""
 echo "Summary:"
 for entry in "${!os_icon_map[@]}"; do
     echo "  - $entry → ${os_color_map[$entry]} pill → ${os_icon_map[$entry]}"
+done
+
+for entry in "${!function_icon_map[@]}"; do
+    echo "  - $entry →  function → ${function_icon_map[$entry]}"
 done
 
 echo ""
@@ -171,11 +228,6 @@ for entry in "${entries[@]}"; do
 done
 
 
-echo "First red pill:  $first_red"
-echo "Last red pill:   $last_red"
-echo "First blue pill: $first_blue"
-echo "Last blue pill:  $last_blue"
-
 magick "$TMP_DIR/$first_blue" -resize 120% -fill "#00ebff" -colorize 100% "$TMP_DIR/first_blue.png"
 magick "$TMP_DIR/$last_blue" -resize 120% -fill "#00ebff" -colorize 100% "$TMP_DIR/last_blue.png"
 magick "$TMP_DIR/$first_red" -resize 120% -fill "#FF0000" -colorize 100% "$TMP_DIR/first_red.png"
@@ -186,7 +238,6 @@ echo ""
 echo "Generating composite images..."
 
 # Generate function row 
-
 num_elements=${#function_icon_map[@]}
 if (( num_elements % 2 == 0 )); then
     x_cord=$(( 995 - (num_elements) * 100 ))
@@ -206,11 +257,9 @@ for entry in "${!os_icon_map[@]}"; do
     output_file="$OUTPUT_DIR/$filename"
 
     # Prepare scaled versions
-    #magick "$TMP_DIR/$icon" -resize 120% "$TMP_DIR/base_${pill}.png"
     magick "$TMP_DIR/$icon" -resize 140% "$TMP_DIR/scaled_${pill}.png"
 
     if [ "$pill" == "red" ]; then
-        #magick "$TMP_DIR/base_${pill}.png" -fill "#FF0000" -colorize 100% "$TMP_DIR/base_${pill}.png"
         magick "$TMP_DIR/scaled_${pill}.png" -fill "#FF0000" -colorize 100% "$TMP_DIR/scaled_${pill}.png"
         base_image="$BASE_RED"
         args=(
@@ -231,7 +280,6 @@ for entry in "${!os_icon_map[@]}"; do
         magick "${args[@]}" "$output_file"
     
     elif [ "$pill" == "blue" ]; then
-        #magick "$TMP_DIR/base_${pill}.png" -fill "#00ebff" -colorize 100% "$TMP_DIR/base_${pill}.png"
         magick "$TMP_DIR/scaled_${pill}.png" -fill "#00ebff" -colorize 100% "$TMP_DIR/scaled_${pill}.png"
         base_image="$BASE_BLUE"
         args=(
@@ -252,7 +300,7 @@ for entry in "${!os_icon_map[@]}"; do
         magick "${args[@]}" "$output_file"
     fi
 
-    echo "✅ Created: $(basename "$output_file")"
+    echo "Created: $(basename "$output_file")"
 done
 
 temp_x_cord=$((x_cord))
@@ -283,11 +331,11 @@ for entry in "${function_entries[@]}"; do
     done
 
     magick "${args[@]}" "$output_file"
-    echo "✅ Created: $(basename "$output_file")"
+    echo "Created: $(basename "$output_file")"
 done
 
-# ============= CLEANUP =============
+# CLEANUP
 rm -rf "$TMP_DIR"
 
 echo ""
-echo "All images generated successfully in $OUTPUT_DIR!"
+echo "All images generated successfully in $OUTPUT_DIR"
