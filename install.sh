@@ -4,12 +4,13 @@
 # Repository: https://github.com/Priyank-Adhav/Matrix-GRUB-Theme
 # ===============================================================
 
-set -e
+set -euo pipefail 
 
 THEME_NAME="Matrix"
 THEME_DIR="/boot/grub/themes"
 GRUB_CFG="/etc/default/grub"
-GRUB_FILE="/boot/grub/grub.cfg"
+GRUB_FILE=""
+THEME_FILE="./Matrix/theme.txt"
 
 echo ""
 echo "==========================="
@@ -32,7 +33,89 @@ else
     exit 1
 fi
 
+if [[ -f /boot/grub2/grub.cfg ]]; then
+       GRUB_FILE="/boot/grub2/grub.cfg"
+   elif [[ -f /boot/grub/grub.cfg ]]; then
+       GRUB_FILE="/boot/grub/grub.cfg"
+   else
+       echo "Could not locate grub.cfg"
+       exit 1
+   fi
+
 echo ""
+
+echo "== Display resolution configuration =="
+
+# Try to read GRUB_GFXMODE
+GFXMODE=$(grep -E '^GRUB_GFXMODE=' /etc/default/grub 2>/dev/null \
+          | cut -d= -f2 | tr -d '"')
+
+if [[ "$GFXMODE" =~ ^([0-9]+)x([0-9]+)$ ]]; then
+    detected_width="${BASH_REMATCH[1]}"
+    detected_height="${BASH_REMATCH[2]}"
+    echo "Detected GRUB resolution: ${detected_width}x${detected_height}"
+else
+    detected_width=""
+    detected_height=""
+    echo "GRUB resolution not detected."
+fi
+
+if [[ -n "$detected_width" ]]; then
+    read -r -p "Use detected resolution? [Y/n]: " reply
+    if [[ "$reply" =~ ^[Nn]$ ]]; then
+        detected_width=""
+        detected_height=""
+    fi
+fi
+
+DEFAULT_WIDTH=1920
+DEFAULT_HEIGHT=1080
+
+# Manual entry if needed
+while [[ -z "$detected_width" ]]; do
+    read -r -p "Enter GRUB resolution [Default: ${DEFAULT_WIDTH}x${DEFAULT_HEIGHT}]: " input
+
+    if [[ -z "$input" ]]; then
+        detected_width="$DEFAULT_WIDTH"
+        detected_height="$DEFAULT_HEIGHT"
+        break
+    fi
+
+    if [[ "$input" =~ ^([0-9]+)x([0-9]+)$ ]]; then
+        detected_width="${BASH_REMATCH[1]}"
+        detected_height="${BASH_REMATCH[2]}"
+    else
+        echo "Invalid format. Please use WIDTHxHEIGHT."
+    fi
+done
+
+echo "Using resolution: ${detected_width}x${detected_height}"
+
+echo "Updating theme layout..."
+
+awk -v w="$detected_width" -v h="$detected_height" '
+    BEGIN { in_menu=0; done=0 }
+    {
+        if ($0 ~ /^\+ boot_menu/ && !done) {
+            in_menu=1
+        }
+
+        if (in_menu && !done) {
+            if ($0 ~ /icon_width *=/)  { sub(/=.*/, "= " w) }
+            if ($0 ~ /icon_height *=/) { sub(/=.*/, "= " h) }
+            if ($0 ~ /item_height *=/) { sub(/=.*/, "= " h) }
+        }
+
+        print
+
+        if (in_menu && $0 ~ /^\}/ && !done) {
+            in_menu=0
+            done=1
+        }
+    }
+' "$THEME_FILE" > "${THEME_FILE}.tmp"
+
+mv "${THEME_FILE}.tmp" "$THEME_FILE"
 
 # Generate theme images
 if [[ -x "./image_generator.sh" ]]; then
@@ -48,12 +131,18 @@ echo ""
 # Ensure theme directory exists 
 mkdir -p "$THEME_DIR"
 
-# Copy theme files 
-echo "Installing theme..."
+DEST="$THEME_DIR/$THEME_NAME"
+
+if [[ -d "$DEST" ]]; then
+    echo "Existing theme found. Replacing it."
+    rm -rf "$DEST"
+fi
+
 cp -r "$THEME_NAME" "$THEME_DIR/" || {
     echo "Failed to copy theme files."
     exit 1
 }
+
 
 # Configure GRUB to use the new theme 
 echo "Updating GRUB configuration..."
