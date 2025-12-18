@@ -48,7 +48,7 @@ if [ ${#entries[@]} -eq 0 ]; then
 fi
 
 # Manual test entries
-#entries=("Arch" "Windows" "func1" "func2" "func3" "func4")
+#entries=("Arch" "Ubuntu" "Windows" "Kali" "func1" "func2" "func3" )
 
 echo "Detected the following entries: "
 
@@ -181,6 +181,8 @@ if [[ "$confirm" =~ ^[Nn]$ ]]; then
     exit 0
 fi
 
+rm -f "$OUTPUT_DIR"/*.png
+mkdir -p "$OUTPUT_DIR"
 # PREPARATION 
 TMP_DIR=$(mktemp -d)
 #TMP_DIR=temp
@@ -227,6 +229,11 @@ first_blue=""
 last_blue=""
 
 for entry in "${entries[@]}"; do
+
+    if [[ -z "${os_color_map[$entry]:-}" ]]; then
+        continue
+    fi
+    
     pill="${os_color_map[$entry]}"
 
     if [[ "$pill" == "red" ]]; then
@@ -280,7 +287,7 @@ for entry in "${!os_icon_map[@]}"; do
             "$TMP_DIR/first_blue.png" -geometry +1210+345 -composite
         )
         temp_x_cord=$((x_cord))
-        for f_entry in "${!function_icon_map[@]}"; do
+        for f_entry in "${function_entries[@]}"; do
             icon="${function_icon_map[$f_entry]}"
             args+=( "$TMP_DIR/$icon" -geometry +${temp_x_cord}+840 -composite )
             args+=( "$TMP_DIR/$icon" -geometry +${temp_x_cord}+840 -composite )
@@ -326,9 +333,9 @@ for entry in "${function_entries[@]}"; do
     args=(
         "$base_image"
         "$TMP_DIR/last_red.png" -geometry +335+345 -composite
-        "$TMP_DIR/first_blue.png" -geometry +1210+345 -composite
+        "$TMP_DIR/last_blue.png" -geometry +1210+345 -composite
         "$TMP_DIR/last_red.png" -geometry +335+345 -composite
-        "$TMP_DIR/first_blue.png" -geometry +1210+345 -composite
+        "$TMP_DIR/last_blue.png" -geometry +1210+345 -composite
         "$TMP_DIR/selection.png" -geometry +$((temp_x_cord - 80))+760 -composite
     )
     ((temp_x_cord+=200))
