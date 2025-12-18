@@ -39,6 +39,7 @@ terminal-height: "100%"
     color = "#fb3048" 
 }
 
+# Backup boot menu
 + boot_menu {
     left = 28%
     width = 50%
