@@ -1,4 +1,5 @@
 #!/bin/bash
+set -euo pipefail
 
 THEME_DIR="$(dirname "$0")"
 ICON_DIR="$THEME_DIR/os_icons"
@@ -16,6 +17,16 @@ fi
 
 echo "Detecting OS entries from GRUB..."
 
+# Detect GRUB config location
+if [[ -f /boot/grub2/grub.cfg ]]; then
+    GRUB_CFG="/boot/grub2/grub.cfg"
+elif [[ -f /boot/grub/grub.cfg ]]; then
+    GRUB_CFG="/boot/grub/grub.cfg"
+else
+    echo "Error: Could not locate grub.cfg"
+    exit 1
+fi
+
 # Menuentry detection
 mapfile -t entries < <(
   awk '
@@ -27,7 +38,7 @@ mapfile -t entries < <(
         }
       }
     }
-  ' /boot/grub/grub.cfg
+  ' "$GRUB_CFG"
 )
 
 
@@ -64,7 +75,7 @@ for entry in "${entries[@]}"; do
         *mint*) default_icon="linuxmint.png" ;;
         *kali*) default_icon="kali.png" ;;
         *endeavour*) default_icon="endeavourOS.png" ;;
-        *win*) default_icon="win.png" ;;
+        *windows*) default_icon="windows.png" ;;
         *func*) default_icon="func_firmware.png" ;;
     esac
 
@@ -248,7 +259,6 @@ fi
 for entry in "${!os_icon_map[@]}"; do
     pill="${os_color_map[$entry]}"
     icon="${os_icon_map[$entry]}"
-    class_name="${entries[$entry]}"
 
     # Generate readable filename
     filename="${entry,,}.png"
@@ -334,8 +344,13 @@ for entry in "${function_entries[@]}"; do
     echo "Created: $(basename "$output_file")"
 done
 
-# CLEANUP
-rm -rf "$TMP_DIR"
+# cleanup
+cleanup() {
+    if [[ -n "${TMP_DIR:-}" ]] && [[ -d "$TMP_DIR" ]]; then
+        rm -rf "$TMP_DIR"
+    fi
+}
+trap cleanup EXIT
 
 echo ""
 echo "All images generated successfully in $OUTPUT_DIR"

@@ -1,5 +1,5 @@
 #!/bin/bash
-set -e
+set -euo pipefail  
 
 BACKUP_ROOT="/var/backups/matrix-grub"
 TIMESTAMP="$(date +%Y%m%d-%H%M%S)"
@@ -23,6 +23,19 @@ if [[ $EUID -ne 0 ]]; then
 fi
 
 mkdir -p "$BACKUP_ROOT"
+
+if [[ -f /boot/grub2/grub.cfg ]]; then
+       GRUB_CFG="/boot/grub2/grub.cfg"
+   elif [[ -f /boot/grub/grub.cfg ]]; then
+       GRUB_CFG="/boot/grub/grub.cfg"
+   else
+       echo "Could not locate grub.cfg"
+       exit 1
+   fi
+
+if [[ $# -eq 0 ]]; then
+    usage
+fi
 
 case "$1" in
     backup)
